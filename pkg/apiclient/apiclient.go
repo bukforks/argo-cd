@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"math"
 	"net"
 	"net/http"
@@ -127,6 +128,7 @@ type ClientOptions struct {
 	Headers              []string
 	HttpRetryMax         int
 	KubeOverrides        *clientcmd.ConfigOverrides
+	KubeConfigFlags      *genericclioptions.ConfigFlags
 }
 
 type client struct {
@@ -210,7 +212,7 @@ func NewClient(opts *ClientOptions) (Client, error) {
 		if opts.KubeOverrides == nil {
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
-		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, "app.kubernetes.io/name=argocd-server")
+		port, err := kube.PortForwardWithClient(8080, opts.PortForwardNamespace, opts.KubeConfigFlags.ToRawKubeConfigLoader(), "app.kubernetes.io/name=argocd-server")
 		if err != nil {
 			return nil, err
 		}

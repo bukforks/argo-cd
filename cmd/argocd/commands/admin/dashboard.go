@@ -28,7 +28,6 @@ func NewDashboardCommand() *cobra.Command {
 			<-ctx.Done()
 		},
 	}
-	initialize.InitCommand(cmd)
 	cmd.Flags().IntVar(&port, "port", common.DefaultPortAPIServer, "Listen on given port")
 	cmd.Flags().StringVar(&address, "address", common.DefaultAddressAPIServer, "Listen on given address")
 	return cmd

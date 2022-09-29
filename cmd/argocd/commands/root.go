@@ -2,10 +2,11 @@ package commands
 
 import (
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/admin"
-	"github.com/argoproj/argo-cd/v2/cmd/argocd/commands/initialize"
 	cmdutil "github.com/argoproj/argo-cd/v2/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v2/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v2/util/cli"
@@ -40,21 +41,31 @@ func NewCommand() *cobra.Command {
 		SilenceUsage:      true,
 	}
 
+	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
+
+	clientOpts.KubeConfigFlags = genericclioptions.NewConfigFlags(false)
+	clientOpts.KubeConfigFlags.AddFlags(flags)
+	// copy k8s persistent flags into argocd command flags
+	flags.VisitAll(func(flag *pflag.Flag) {
+		flag.Name = "kubectl-" + flag.Name
+		command.PersistentFlags().AddFlag(flag)
+	})
+
 	command.AddCommand(NewCompletionCommand())
-	command.AddCommand(initialize.InitCommand(NewVersionCmd(&clientOpts)))
-	command.AddCommand(initialize.InitCommand(NewClusterCommand(&clientOpts, pathOpts)))
-	command.AddCommand(initialize.InitCommand(NewApplicationCommand(&clientOpts)))
-	command.AddCommand(initialize.InitCommand(NewAppSetCommand(&clientOpts)))
+	command.AddCommand(NewVersionCmd(&clientOpts))
+	command.AddCommand(NewClusterCommand(&clientOpts, pathOpts))
+	command.AddCommand(NewApplicationCommand(&clientOpts))
+	command.AddCommand(NewAppSetCommand(&clientOpts))
 	command.AddCommand(NewLoginCommand(&clientOpts))
 	command.AddCommand(NewReloginCommand(&clientOpts))
-	command.AddCommand(initialize.InitCommand(NewRepoCommand(&clientOpts)))
-	command.AddCommand(initialize.InitCommand(NewRepoCredsCommand(&clientOpts)))
+	command.AddCommand(NewRepoCommand(&clientOpts))
+	command.AddCommand(NewRepoCredsCommand(&clientOpts))
 	command.AddCommand(NewContextCommand(&clientOpts))
-	command.AddCommand(initialize.InitCommand(NewProjectCommand(&clientOpts)))
-	command.AddCommand(initialize.InitCommand(NewAccountCommand(&clientOpts)))
+	command.AddCommand(NewProjectCommand(&clientOpts))
+	command.AddCommand(NewAccountCommand(&clientOpts))
 	command.AddCommand(NewLogoutCommand(&clientOpts))
-	command.AddCommand(initialize.InitCommand(NewCertCommand(&clientOpts)))
-	command.AddCommand(initialize.InitCommand(NewGPGCommand(&clientOpts)))
+	command.AddCommand(NewCertCommand(&clientOpts))
+	command.AddCommand(NewGPGCommand(&clientOpts))
 	command.AddCommand(admin.NewAdminCommand())
 
 	defaultLocalConfigPath, err := localconfig.DefaultLocalConfigPath()

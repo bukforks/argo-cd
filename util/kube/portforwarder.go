@@ -23,6 +23,14 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
 	clientConfig := clientcmd.NewInteractiveDeferredLoadingClientConfig(loadingRules, overrides, os.Stdin)
+	return portForward(targetPort, namespace, clientConfig, podSelectors...)
+}
+
+func PortForwardWithClient(targetPort int, namespace string, client clientcmd.ClientConfig, podSelectors ...string) (int, error) {
+	return portForward(targetPort, namespace, client, podSelectors...)
+}
+
+func portForward(targetPort int, namespace string, clientConfig clientcmd.ClientConfig, podSelectors ...string) (int, error) {
 	config, err := clientConfig.ClientConfig()
 	if err != nil {
 		return -1, err

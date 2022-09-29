@@ -16,7 +16,6 @@ import (
 	"github.com/go-redis/redis/v8"
 	"github.com/golang/protobuf/ptypes/empty"
 	log "github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/kubernetes"
 	cache2 "k8s.io/client-go/tools/cache"
@@ -102,14 +101,25 @@ type forwardRepoClientset struct {
 	init          sync.Once
 	repoClientset repoapiclient.Clientset
 	err           error
+	clientConfig  clientcmd.ClientConfig
 }
 
 func (c *forwardRepoClientset) NewRepoServerClient() (io.Closer, repoapiclient.RepoServerServiceClient, error) {
 	c.init.Do(func() {
-		overrides := clientcmd.ConfigOverrides{
-			CurrentContext: c.context,
+
+		var err error
+		var podSelectors = "app.kubernetes.io/name=argocd-repo-server"
+		var repoServerPort int
+
+		switch c.clientConfig {
+		default:
+			repoServerPort, err = kubeutil.PortForwardWithClient(8081, c.namespace, c.clientConfig, podSelectors)
+		case nil:
+			overrides := clientcmd.ConfigOverrides{
+				CurrentContext: c.context,
+			}
+			repoServerPort, err = kubeutil.PortForward(8081, c.namespace, &overrides, podSelectors)
 		}
-		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, "app.kubernetes.io/name=argocd-repo-server")
 		if err != nil {
 			c.err = err
 			return
@@ -140,8 +150,6 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 // StartLocalServer allows executing command in a headless mode: on the fly starts Argo CD API server and
 // changes provided client options to use started API server port
 func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string) error {
-	flags := pflag.NewFlagSet("tmp", pflag.ContinueOnError)
-	clientConfig := cli.AddKubectlFlagsToSet(flags)
 	startInProcessAPI := clientOpts.Core
 	if !startInProcessAPI {
 		localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
@@ -178,7 +186,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		io.Close(ln)
 	}
 
-	restConfig, err := clientConfig.ClientConfig()
+	restConfig, err := clientOpts.KubeConfigFlags.ToRESTConfig()
 	if err != nil {
 		return err
 	}
@@ -191,6 +199,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		return err
 	}
 
+	clientConfig := clientOpts.KubeConfigFlags.ToRawKubeConfigLoader()
 	namespace, _, err := clientConfig.Namespace()
 	if err != nil {
 		return err
@@ -212,7 +221,7 @@ func StartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, 
 		KubeClientset: kubeClientset,
 		Insecure:      true,
 		ListenHost:    *address,
-		RepoClientset: &forwardRepoClientset{namespace: namespace, context: ctxStr},
+		RepoClientset: &forwardRepoClientset{namespace: namespace, context: ctxStr, clientConfig: clientConfig},
 	})
 	srv.Init(ctx)
 
