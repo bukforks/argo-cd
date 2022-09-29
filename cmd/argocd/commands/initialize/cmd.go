@@ -28,5 +28,6 @@ func InitCommand(cmd *cobra.Command) *cobra.Command {
 		}
 		cmd.PersistentFlags().AddFlag(flag)
 	})
+
 	return cmd
 }
