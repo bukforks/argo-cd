@@ -26,7 +26,7 @@ func InitCommand(cmd *cobra.Command) *cobra.Command {
 		if flag.Name == "server" {
 			return
 		}
-		cmd.Flags().AddFlag(flag)
+		cmd.PersistentFlags().AddFlag(flag)
 	})
 	return cmd
 }
